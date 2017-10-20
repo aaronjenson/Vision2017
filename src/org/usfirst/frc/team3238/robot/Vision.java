@@ -14,15 +14,15 @@ import java.util.List;
 public class Vision extends Thread {
 
     private static final double CAMERA_FIELD_OF_VIEW = 75;
-    private static final int FRAME_WIDTH = 640;
-    private static final int FRAME_HEIGHT = 480;
+    private static final int FRAME_WIDTH = 480;
+    private static final int FRAME_HEIGHT = 320;
 
     private static final int CAMERA_EXPOSURE = 1;
 
-    private static final int COLOR_MIN_H = 0;
-    private static final int COLOR_MIN_S = 0;
-    private static final int COLOR_MIN_V = 0;
-    private static final int COLOR_MAX_H = 120;
+    private static final int COLOR_MIN_H = 78;
+    private static final int COLOR_MIN_S = 172;
+    private static final int COLOR_MIN_V = 44;
+    private static final int COLOR_MAX_H = 92;
     private static final int COLOR_MAX_S = 255;
     private static final int COLOR_MAX_V = 255;
 
@@ -39,11 +39,11 @@ public class Vision extends Thread {
 
     private static final double DISTANCE_TO_HEIGHT_CONVERSION = 0.5;
 
-    public static class VisionOutput {
-        public double angle;
-        public double distance;
+    static class VisionOutput {
+        double angle;
+        double distance;
 
-        public VisionOutput(double distance, double angle) {
+        VisionOutput(double distance, double angle) {
             this.angle = angle;
             this.distance = distance;
         }
@@ -66,7 +66,7 @@ public class Vision extends Thread {
 
     private boolean isProcessing = false;
 
-    public Vision(UsbCamera source, VisionListener listener) {
+    Vision(UsbCamera source, VisionListener listener) {
         super();
         this.listener = listener;
 
@@ -83,11 +83,11 @@ public class Vision extends Thread {
         filteredContours = new ArrayList<>();
     }
 
-    public void startProcessing() {
+    void startProcessing() {
         isProcessing = true;
     }
 
-    public void stopProcessing() {
+    void stopProcessing() {
         isProcessing = false;
     }
 
@@ -105,14 +105,14 @@ public class Vision extends Thread {
 
                     Imgproc.resize(sourceFrame, sourceFrame, new Size(FRAME_WIDTH, FRAME_HEIGHT));
 
-                    Imgproc.cvtColor(sourceFrame, yCrCbFrame, Imgproc.COLOR_RGB2YCrCb);
-                    Core.split(yCrCbFrame, channels);
-                    Imgproc.equalizeHist(channels.get(0), yFrame);
-                    channels.set(0, yFrame);
-                    Core.merge(channels, yCrCbFrame);
-
-
-                    Imgproc.cvtColor(yCrCbFrame, sourceFrame, Imgproc.COLOR_YCrCb2RGB);
+//                    Imgproc.cvtColor(sourceFrame, yCrCbFrame, Imgproc.COLOR_RGB2YCrCb);
+//                    Core.split(yCrCbFrame, channels);
+//                    Imgproc.equalizeHist(channels.get(0), yFrame);
+//                    channels.set(0, yFrame);
+//                    Core.merge(channels, yCrCbFrame);
+//
+//
+//                    Imgproc.cvtColor(yCrCbFrame, sourceFrame, Imgproc.COLOR_YCrCb2RGB);
                     Imgproc.cvtColor(sourceFrame, sourceFrame, Imgproc.COLOR_RGB2HSV);
 
                     Core.inRange(sourceFrame, new Scalar(COLOR_MIN_H, COLOR_MIN_S, COLOR_MIN_V),
@@ -168,13 +168,12 @@ public class Vision extends Thread {
 
                     listener.onFrameReady(new VisionOutput(distance, angle));
 
+                    double time = Timer.getFPGATimestamp() - timestamp;
+                    DriverStation.reportWarning("Vision FPS: " + (1 / time), false);
+
                 } catch (Exception e) {
                     DriverStation.reportError(e.getMessage(), true);
                 }
-
-                double time = Timer.getFPGATimestamp() - timestamp;
-
-                DriverStation.reportWarning("Vision FPS: " + (1 / time), false);
             }
         }
     }
