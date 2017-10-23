@@ -23,8 +23,8 @@ public class Robot extends IterativeRobot implements Vision.VisionListener {
 
     @Override
     public void robotPeriodic() {
-        if (joy.getRawButton(11)) visionSystem.stopProcessing();
-        else visionSystem.startProcessing();
+        if (joy.getRawButton(11)) visionSystem.startProcessing();
+        else visionSystem.stopProcessing();
     }
 
     @Override

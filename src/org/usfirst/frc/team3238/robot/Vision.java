@@ -1,6 +1,7 @@
 package org.usfirst.frc.team3238.robot;
 
 import edu.wpi.cscore.CvSink;
+import edu.wpi.cscore.CvSource;
 import edu.wpi.cscore.UsbCamera;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -55,11 +56,14 @@ public class Vision extends Thread {
 
     private CvSink sink;
     private VisionListener listener;
+    private CvSource mask_serve;
+    private CvSource contours_serve;
 
     private Mat sourceFrame;
     private Mat yCrCbFrame;
     private Mat yFrame;
     private Mat mask;
+    private Mat contours_mat;
     private List<Mat> channels;
     private List<MatOfPoint> contours;
     private List<MatOfPoint> filteredContours;
@@ -77,10 +81,14 @@ public class Vision extends Thread {
         yCrCbFrame = new Mat();
         yFrame = new Mat();
         mask = new Mat();
+        contours_mat = new Mat();
 
         channels = new ArrayList<>(3);
         contours = new ArrayList<>();
         filteredContours = new ArrayList<>();
+
+        mask_serve = CameraServer.getInstance().putVideo("mask", FRAME_WIDTH, FRAME_HEIGHT);
+        contours_serve = CameraServer.getInstance().putVideo("contours", FRAME_WIDTH, FRAME_HEIGHT);
     }
 
     void startProcessing() {
@@ -118,9 +126,13 @@ public class Vision extends Thread {
                     Core.inRange(sourceFrame, new Scalar(COLOR_MIN_H, COLOR_MIN_S, COLOR_MIN_V),
                             new Scalar(COLOR_MAX_H, COLOR_MAX_S, COLOR_MAX_V), mask);
 
+                    mask_serve.putFrame(mask);
+
                     contours.clear();
                     filteredContours.clear();
                     Imgproc.findContours(mask, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+                    Imgproc.drawContours(contours_mat, contours,-1, new Scalar(255, 0, 0));
 
                     for (MatOfPoint contour : contours) {
                         double contourArea = Imgproc.contourArea(contour);
@@ -147,26 +159,29 @@ public class Vision extends Thread {
 
                     });
 
-                    Rect bounds1 = Imgproc.boundingRect(filteredContours.get(0));
-                    Rect bounds2 = Imgproc.boundingRect(filteredContours.get(1));
+                    if(filteredContours.size() > 0) {
 
-                    double centerX1 = bounds1.x + (0.5 * bounds1.width);
-                    //double centerY1 = bounds1.y + (0.5 * bounds1.height);
-                    double centerX2 = bounds2.x + (0.5 * bounds2.width);
-                    //double centerY2 = bounds2.y + (0.5 * bounds2.height);
+                        Rect bounds1 = Imgproc.boundingRect(filteredContours.get(0));
+                        Rect bounds2 = Imgproc.boundingRect(filteredContours.get(1));
 
-                    double centerXOffset = (centerX1 - centerX2) / 2;
-                    //double centerYOffset = (centerY1 - centerY2) / 2;
+                        double centerX1 = bounds1.x + (0.5 * bounds1.width);
+                        //double centerY1 = bounds1.y + (0.5 * bounds1.height);
+                        double centerX2 = bounds2.x + (0.5 * bounds2.width);
+                        //double centerY2 = bounds2.y + (0.5 * bounds2.height);
 
-                    double centerX = Math.min(centerX1, centerX2) + centerXOffset;
-                    //double centerY = Math.min(centerY1, centerY2) + centerYOffset;
+                        double centerXOffset = (centerX1 - centerX2) / 2;
+                        //double centerYOffset = (centerY1 - centerY2) / 2;
 
-                    double height = (bounds1.height + bounds2.height) / 2;
+                        double centerX = Math.min(centerX1, centerX2) + centerXOffset;
+                        //double centerY = Math.min(centerY1, centerY2) + centerYOffset;
 
-                    angle = ((centerX - (FRAME_WIDTH / 2)) / (FRAME_WIDTH / 2)) * CAMERA_FIELD_OF_VIEW;
-                    distance = height * DISTANCE_TO_HEIGHT_CONVERSION;
+                        double height = (bounds1.height + bounds2.height) / 2;
 
-                    listener.onFrameReady(new VisionOutput(distance, angle));
+                        angle = ((centerX - (FRAME_WIDTH / 2)) / (FRAME_WIDTH / 2)) * CAMERA_FIELD_OF_VIEW;
+                        distance = height * DISTANCE_TO_HEIGHT_CONVERSION;
+
+                        listener.onFrameReady(new VisionOutput(distance, angle));
+                    }
 
                     double time = Timer.getFPGATimestamp() - timestamp;
                     DriverStation.reportWarning("Vision FPS: " + (1 / time), false);
